@@ -1,7 +1,7 @@
 (******************************************************************************)
 (* OCaml-9P                                                                  *)
 (*                                                                            *)
-(* Copyright 2007 Oscar Hellström, oscar at oscarh dot net.                   *)
+(* Copyright 2007 Oscar Hellstrï¿½m, oscar at oscarh dot net.                   *)
 (* All rights reserved                                                        *)
 (* Redistribution and use in source and binary forms, with or without         *)
 (* modification, are permitted provided that the following conditions are     *)
@@ -40,6 +40,8 @@ Primarily written to be used with {{:http://www.suckless.org/wmii} WMII}.
 
 (** The type of an 9P connection *)
 type t
+type fid
+type io
 
 (** Error in the underlying socket communication *)
 exception Socket_error of string
@@ -49,42 +51,49 @@ exception Client_error of string
 
 (** {2 File Modes} *)
 
-val oREAD : int
-val oWRITE : int
-val oRDWR : int
-val oEXEC : int
-val oEXCL : int
-val oTRUNC : int
-val oREXEC : int
-val oRCLOSE : int
-val oAPPEND : int
+type filemode = private int
+
+val oREAD : filemode
+val oWRITE : filemode
+val oRDWR : filemode
+val oEXEC : filemode
+val oEXCL : filemode
+val oTRUNC : filemode
+val oREXEC : filemode
+val oRCLOSE : filemode
+val oAPPEND : filemode
+
+val combine_mode: filemode -> filemode -> filemode
+
+
+type modebit = private int32
 
 (** Mode bit for directories *)
-val dMDIR : int32
+val dMDIR : modebit
 
 (** Mode bit for append only files *)
-val  dMAPPEND : int32
+val  dMAPPEND : modebit
 
 (** Mode bit for exclusive use files *)
-val  dMEXCL : int32
+val  dMEXCL : modebit
 
 (** Mode bit for mounted channel *)
-val  dMMOUNT : int32
+val  dMMOUNT : modebit
 
 (** Mode bit for authentication file *)
-val  dMAUTH : int32
+val  dMAUTH : modebit
 
 (** Mode bit for non-backed-up file *)
-val  dMTMP : int32
+val  dMTMP : modebit
 
 (** Mode bit for read permission *)
-val  dMREAD : int32
+val  dMREAD : modebit
 
 (** Mode bit for write permission *)
-val  dMWRITE : int32
+val  dMWRITE : modebit
 
 (** Mode bit for execute permission *)
-val  dMEXEC : int32
+val  dMEXEC : modebit
 
 
 (** {2 9P client interface functions} *)
@@ -100,7 +109,7 @@ val connect : string -> t
 returns the [fid] for that file.
 It is common to attach to [/]. Returns a fid for the attached address.
 *)
-val attach : t -> string -> string -> int32
+val attach : t -> string -> string -> fid
 
 (**
 [walk conn oldfid reuse file] walks from [oldfid] to the [file]. [file] must be
@@ -108,62 +117,62 @@ a file-name relative to the file represented by [oldfid]. If [reuse] is true,
 the old [fid] will represent the new file. Returns the fid, [oldfid] if [reuse]
 was true and a new fid if [reuse] was false.
 *)
-val walk : t -> int32 -> bool -> string -> int32
+val walk : t -> fid -> bool -> string -> fid
 
 (**
 [walk_open conn oldfid reuse file mode] does the same as [walk] but also opens
 the file. [mode] is one of the File Modes. Returns [(fid, iounit)].
 *)
-val walk_open : t -> int32 -> bool -> string -> int -> int32 * int32
+val walk_open : t -> fid -> bool -> string -> filemode -> fid * io
 
 (**
 [fopen conn fid mode] [mode] is one of the File Modes. Returns an [iounit].
 *)
-val fopen : t -> int32 -> int -> int32
+val fopen : t -> fid -> filemode -> io
 
 (**
 [clunk conn fid] forgets about the [fid]. The [fid] may not be used to access
 the file it did represent.
 *)
-val clunk : t -> int32 -> unit
+val clunk : t -> fid -> unit
 
 
 (**
 [stat conn fid] returns [stat] results for the file/dir represented by [fid].
 *)
-val stat : t -> int32 -> Fcall.stat
+val stat : t -> fid -> Fcall.stat
 
 (**
 [read conn fid iounit offset count] reads [count] bytes from [offset] in the
 file represented by [fid].
 *)
-val read : t -> int32 -> int32 -> int64 -> int32 -> string
+val read : t -> fid -> io -> int64 -> int32 -> string
 
 (**
 [write conn fid iounit offset count data] writes [count] bytes of [data] at
 [offset] to the file represented by [fid]. Returns the amount of bytes actually
 written.
 *)
-val write : t -> int32 -> int32 -> int64 -> int32 -> string -> int32
+val write : t -> fid -> io -> int64 -> int32 -> string -> int32
 
 (**
 [fwrite conn fid name offset count data] writes [count] bytes of [data] at
 [offset] to the file named [name]. The name is relative to [fid]. Returns the
 amount of bytes actually written.
 *)
-val fwrite : t -> int32 -> string -> int64 -> int32 -> string -> int32
+val fwrite : t -> fid -> string -> int64 -> int32 -> string -> int32
 
 (**
 [create conn fid name perm mode] creates a file [name] in the directory
 represented by [fid]. The file will have permissions according to [perm] and
 will be opened according to [mode]. Returns an [iounit].
 *)
-val create : t -> int32 -> string -> int32 -> int -> int32
+val create : t -> fid -> string -> int32 -> filemode -> int32
 
 (**
 [remove conn fid] removes the file represented by fid.
 *)
-val remove : t -> int32 -> unit
+val remove : t -> fid -> unit
 
 (** {2 Misc helper functions} *)
 

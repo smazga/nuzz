@@ -49,7 +49,7 @@ let print_file dir =
     let group = dir.Fcall.gid in
     let name = dir.Fcall.name in
     let size = Int64.to_int (dir.Fcall.length) in
-    let dirmarker = if Int32.logand dir.Fcall.mode O9pc.dMDIR = O9pc.dMDIR then
+    let dirmarker = if Int32.logand dir.Fcall.mode (O9pc.dMDIR :> int32) = (O9pc.dMDIR :> int32) then
         "/" 
     else 
         "" in
@@ -108,7 +108,7 @@ let create address file =
     let file = 
         String.sub file (index + 1) ((String.length file) - (index + 1)) in
     let newfid = O9pc.walk conn fid false dir in
-    let _ = O9pc.create conn newfid file O9pc.dMWRITE  O9pc.oWRITE in
+    let _ = O9pc.create conn newfid file (O9pc.dMWRITE :> int32)  O9pc.oWRITE in
     O9pc.clunk conn newfid;
     O9pc.clunk conn fid
 

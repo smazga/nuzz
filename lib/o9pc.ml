@@ -41,6 +41,8 @@
 open Fcall
 
 type t = Unix.file_descr
+type fid = int32
+type io = int32
 
 let msize = ref 8192
 
@@ -49,6 +51,7 @@ exception Client_error of string
 exception Internal_error of string
 
 (* File modes *)
+type filemode = int
 let oREAD = 0x00
 let oWRITE = 0x01
 let oRDWR = 0x02
@@ -58,7 +61,9 @@ let oTRUNC = 0x10
 let oREXEC = 0x20
 let oRCLOSE = 0x40
 let oAPPEND = 0x80
+let combine_mode = ( lor )
 
+type modebit = int32
 (* Mode bits for files / dirs *)
 let dMDIR  = Int32.shift_left Int32.one 31
 let dMAPPEND = Int32.shift_left Int32.one 30
