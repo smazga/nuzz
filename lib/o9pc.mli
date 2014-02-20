@@ -38,7 +38,7 @@ Primarily written to be used with {{:http://www.suckless.org/wmii} WMII}.
 
 *)
 
-(** The type of an 9P connection *)
+(** The type of an 9P connection &c. *)
 type t
 type fid
 type io
@@ -117,13 +117,7 @@ a file-name relative to the file represented by [oldfid]. If [reuse] is true,
 the old [fid] will represent the new file. Returns the fid, [oldfid] if [reuse]
 was true and a new fid if [reuse] was false.
 *)
-val walk : t -> fid -> bool -> string -> fid
-
-(**
-[walk_open conn oldfid reuse file mode] does the same as [walk] but also opens
-the file. [mode] is one of the File Modes. Returns [(fid, iounit)].
-*)
-val walk_open : t -> fid -> bool -> string -> filemode -> fid * io
+val walk : t -> fid -> reuse:bool -> filename:string -> fid
 
 (**
 [fopen conn fid mode] [mode] is one of the File Modes. Returns an [iounit].
@@ -136,7 +130,6 @@ the file it did represent.
 *)
 val clunk : t -> fid -> unit
 
-
 (**
 [stat conn fid] returns [stat] results for the file/dir represented by [fid].
 *)
@@ -146,28 +139,21 @@ val stat : t -> fid -> Fcall.stat
 [read conn fid iounit offset count] reads [count] bytes from [offset] in the
 file represented by [fid].
 *)
-val read : t -> fid -> io -> int64 -> int32 -> string
+val read : t -> fid -> io -> offset:int64 -> count:int32 -> string
 
 (**
 [write conn fid iounit offset count data] writes [count] bytes of [data] at
 [offset] to the file represented by [fid]. Returns the amount of bytes actually
 written.
 *)
-val write : t -> fid -> io -> int64 -> int32 -> string -> int32
-
-(**
-[fwrite conn fid name offset count data] writes [count] bytes of [data] at
-[offset] to the file named [name]. The name is relative to [fid]. Returns the
-amount of bytes actually written.
-*)
-val fwrite : t -> fid -> string -> int64 -> int32 -> string -> int32
+val write : t -> fid -> io -> offset:int64 -> count:int32 -> string -> int32
 
 (**
 [create conn fid name perm mode] creates a file [name] in the directory
 represented by [fid]. The file will have permissions according to [perm] and
 will be opened according to [mode]. Returns an [iounit].
 *)
-val create : t -> fid -> string -> int32 -> filemode -> int32
+val create : t -> fid -> filename:string -> perm:int32 -> mode:filemode -> int32
 
 (**
 [remove conn fid] removes the file represented by fid.

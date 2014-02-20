@@ -120,18 +120,13 @@ let version fd =
     deserialize rversion (receive fd);
     msize := Int32.to_int rversion#msize
 
-let walk fd oldfid reuse file =
-    let wname = Str.split delimiter_exp file in
+let walk fd oldfid ~reuse ~filename =
+    let wname = Str.split delimiter_exp filename in
     let twalk = new tWalk oldfid reuse wname in
     send fd twalk#serialize;
     let rwalk = new rWalk twalk#tag 0 in
     deserialize rwalk (receive fd);
     twalk#newfid
-
-(* Returns (fid * iounit) *)
-let walk_open fd oldfid reuse file mode =
-    let newfid = walk fd oldfid reuse file in
-    (newfid, fopen fd newfid mode)
 
 let clunk fd fid =
     let tclunk = new tClunk fid in
@@ -140,7 +135,7 @@ let clunk fd fid =
     deserialize rclunk (receive fd)
 
 (* Low level function *)
-let read fd fid iounit offset count =
+let read fd fid iounit ~offset ~count =
     let tread = new tRead fid offset count in
     send fd tread#serialize;
     let rread = new rRead tread#tag "" in
@@ -148,7 +143,7 @@ let read fd fid iounit offset count =
     rread#data
 
 (* Low level function *)
-let write fd fid iounit offset count data = 
+let write fd fid iounit ~offset ~count data =
     let rec write offset count data =
         let i32write_len = if iounit > count then count else iounit in
         let write_len = Int32.to_int i32write_len in
@@ -172,20 +167,14 @@ let write fd fid iounit offset count data =
     write offset count data;
     count (* FIXME Should we keep track of how much we have written? *)
 
-let fwrite fd relfid file offset count data =
-    let fid, iounit = walk_open fd relfid false file oWRITE in
-    let count = write fd fid iounit offset count data in
-    clunk fd fid;
-    count
-
 let remove fd fid =
     let tremove = new tRemove fid in
     send fd tremove#serialize;
     let rremove = new rRemove tremove#tag in
     deserialize rremove (receive fd)
 
-let create fd fid name perm mode =
-    let tcreate = new tCreate fid name perm mode in
+let create fd fid ~filename ~perm ~mode =
+    let tcreate = new tCreate fid filename perm mode in
     send fd tcreate#serialize;
     let rcreate = new rCreate tcreate#tag Int32.zero in
     deserialize rcreate (receive fd);

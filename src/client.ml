@@ -66,7 +66,8 @@ let print_dirs dirs =
 let open_fid address file =
     let conn = O9pc.connect address in
     let rootfid = O9pc.attach conn user "/" in
-    let _, iounit = O9pc.walk_open conn rootfid true file O9pc.oREAD in
+    let rootfid = O9pc.walk conn rootfid true file in
+    let iounit = O9pc.fopen conn rootfid O9pc.oREAD in
     (conn, rootfid, iounit)
 
 let write address file =
@@ -76,7 +77,10 @@ let write address file =
     let conn = O9pc.connect address in
     let rootfid = O9pc.attach conn user "/" in
     let i32len = Int32.of_int len in
-    let count = O9pc.fwrite conn rootfid file Int64.zero i32len data in
+    let fid = O9pc.walk conn rootfid false file in
+    let iounit = O9pc.fopen conn fid O9pc.oWRITE in
+    let count = O9pc.write conn fid iounit 0L i32len data in
+    O9pc.clunk conn fid;
     if count != i32len then
         printf "Warning: Could only write %d bytes" (Int32.to_int count)
 
