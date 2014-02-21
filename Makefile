@@ -43,7 +43,7 @@ uninstall:
 	$(OCAMLFIND) remove $(NAME)
 
 $(LIB): $(LIBCMI) $(LIBOBJ)
-	$(OCAMLFIND) $(OCAMLC) -a -o $@ -package "$(REQUIRES)" -linkpkg $(LIBOBJ)
+	$(OCAMLFIND) $(OCAMLC) -a -o $@ -package "$(REQUIRES)" $(LIBOBJ)
 
 $(LIBX): $(LIBCMI) $(LIBXOBJ)
 	$(OCAMLFIND) $(OCAMLOPT) -a -o $@ -package "$(REQUIRES)" $(LIBXOBJ)
