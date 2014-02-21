@@ -17,44 +17,33 @@ PREFIX = /usr/local
 
 # Sources
 LIBSRC = lib/fcall.ml lib/o9pc.ml
-CLSRC = src/client.ml
 
 # The output to create
-CLIENT = o9pc
 LIB = o9p.cma
 LIBX = o9p.cmxa
-
-NAME=o9p
 
 # Automagic stuff below
 
 LIBOBJ = $(patsubst %.ml,%.cmo,$(LIBSRC))
 LIBXOBJ = $(patsubst %.ml,%.cmx,$(LIBSRC))
-CLOBJ = $(patsubst %.ml,%.cmx,$(CLSRC))
 LIBCMI = $(patsubst %.ml,%.cmi,$(LIBSRC))
 LIBMLI = $(patsubst %.ml,%.mli,$(LIBSRC))
 
-all: $(LIB) $(LIBX) $(CLIENT)
+all: $(LIB) $(LIBX)
 
 .PHONY: install
 install: all
 	$(OCAMLFIND) install $(NAME) $(LIB) $(LIBCMI) $(NAME).a $(LIBX) META
-	install -d $(DESTDIR)$(PREFIX)/bin/
-	install $(CLIENT) $(DESTDIR)$(PREFIX)/bin/$(CLIENT)
 
 .PHONY: uninstall
 uninstall:
 	$(OCAMLFIND) remove $(NAME)
-	rm -f $(DESTDIR)$(PREFIX)/bin/$(CLIENT)
 
 $(LIB): $(LIBCMI) $(LIBOBJ)
 	$(OCAMLFIND) $(OCAMLC) -a -o $@ -package "$(REQUIRES)" -linkpkg $(LIBOBJ)
 
 $(LIBX): $(LIBCMI) $(LIBXOBJ)
 	$(OCAMLFIND) $(OCAMLOPT) -a -o $@ -package "$(REQUIRES)" $(LIBXOBJ)
-
-$(CLIENT): $(CLOBJ)
-	$(OCAMLFIND) $(OCAMLOPT) -package "$(REQUIRES)" -linkpkg -o $@ $(LIBX) $^
 
 %.cmo: %.ml
 	$(OCAMLFIND) $(OCAMLC) -c $(INCLUDES) -package "$(REQUIRES)" $<
@@ -70,5 +59,5 @@ htdoc: $(LIBCMI) $(LIBMLI)
 
 .PHONY: clean
 clean:
-	rm -f lib/*.cmo lib/*.cmx lib/*.cmi lib/*.o src/*.cmx src/*.cmi src/*.o \
-	  $(LIB) $(LIBX) $(patsubst %.cmxa,%.a,$(LIBX)) $(CLIENT) doc/*
+	rm -f lib/*.cmo lib/*.cmx lib/*.cmi lib/*.o \
+	  $(LIB) $(LIBX) $(patsubst %.cmxa,%.a,$(LIBX)) doc/*
