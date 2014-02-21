@@ -15,6 +15,9 @@ INCLUDES = -I lib
 # Install prefix for client
 PREFIX = /usr/local
 
+#Name
+NAME=o9p
+
 # Sources
 LIBSRC = lib/fcall.ml lib/o9pc.ml
 
