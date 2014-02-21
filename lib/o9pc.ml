@@ -121,7 +121,10 @@ let version fd =
     deserialize rversion (receive fd);
     msize := Int32.to_int rversion#msize
 
-let walk fd oldfid ~reuse ~filename =
+let walk fd oldfid ?reuse filename =
+    let reuse = match reuse with
+        | None -> false
+        | Some () -> true in
     let wname = Str.split delimiter_exp filename in
     let twalk = new tWalk oldfid reuse wname in
     send fd twalk#serialize;
@@ -136,7 +139,7 @@ let clunk fd fid =
     deserialize rclunk (receive fd)
 
 (* Low level function *)
-let read fd fid iounit ~offset ~count =
+let read fd fid iounit ?(offset=0L) count =
     let tread = new tRead fid offset count in
     send fd tread#serialize;
     let rread = new rRead tread#tag "" in
@@ -144,7 +147,11 @@ let read fd fid iounit ~offset ~count =
     rread#data
 
 (* Low level function *)
-let write fd fid iounit ~offset ~count data =
+let write fd fid iounit ?(offset=0L) ?count data =
+    let count = match count with
+        | None -> Int32.of_int (String.length data)
+        | Some c -> c
+    in
     let rec write offset count data =
         let i32write_len = if iounit > count then count else iounit in
         let write_len = Int32.to_int i32write_len in
@@ -188,7 +195,10 @@ let stat fd fid =
     deserialize rstat (receive fd);
     rstat#stat
 
-let attach fd user aname = 
+let attach fd ?user aname = 
+    let user = match user with
+        | Some u -> u
+        | None -> Sys.getenv "USER" in
     let tattach = new tAttach None user aname in
     send fd tattach#serialize;
     let rattach = new rAttach tattach#tag in

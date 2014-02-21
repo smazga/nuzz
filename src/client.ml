@@ -44,6 +44,7 @@ type cmd = Read of string | Write of string | Ls of string
 let adrs_exp = Str.regexp "unix!\\(.+\\)"
 
 let user = Sys.getenv "USER"
+let reuse = ()
 
 let print_file dir =
     let owner = dir.Fcall.uid in
@@ -64,23 +65,23 @@ let print_dirs dirs =
         ()
 
 (* Returns fid * iounit *)
-let open_fid address file =
+let open_fid address filename =
     let conn = O9pc.connect address in
-    let rootfid = O9pc.attach conn user "/" in
-    let rootfid = O9pc.walk conn rootfid true file in
+    let rootfid = O9pc.attach conn ~user "/" in
+    let rootfid = O9pc.walk conn rootfid ~reuse filename in
     let iounit = O9pc.fopen conn rootfid O9pc.oREAD in
     (conn, rootfid, iounit)
 
-let write address file =
+let write address ~filename =
     let buff = String.create 4096 in
     let len = (input stdin buff 0 4096) - 1 in
     let data = String.sub buff 0 len in
     let conn = O9pc.connect address in
-    let rootfid = O9pc.attach conn user "/" in
+    let rootfid = O9pc.attach conn "/" in
     let i32len = Int32.of_int len in
-    let fid = O9pc.walk conn rootfid false file in
+    let fid = O9pc.walk conn rootfid filename in
     let iounit = O9pc.fopen conn fid O9pc.oWRITE in
-    let count = O9pc.write conn fid iounit 0L i32len data in
+    let count = O9pc.write conn fid iounit ~count:i32len data in
     O9pc.clunk conn fid;
     if count != i32len then
         printf "Warning: Could only write %d bytes" (Int32.to_int count)
@@ -89,7 +90,7 @@ let read address file =
     let conn, fid, iounit = open_fid address file in
     let rec read offset =
         let max_len = Int32.of_int 4096 in
-        let data = O9pc.read conn fid iounit offset max_len in
+        let data = O9pc.read conn fid iounit ~offset max_len in
         print_string data;
         flush stdout;
         let len = String.length data in
@@ -101,26 +102,26 @@ let read address file =
 let ls address dir =
     let conn, fid, iounit = open_fid address dir in
     let max_len = Int32.of_int 4096 in
-    let data = O9pc.read conn fid iounit Int64.zero max_len in
+    let data = O9pc.read conn fid iounit max_len in
     print_dirs (O9pc.unpack_files data);
     O9pc.clunk conn fid
 
 let create address file =
     let conn = O9pc.connect address in
-    let fid = O9pc.attach conn user "/" in
+    let fid = O9pc.attach conn "/" in
     let index = try String.rindex file '/' with Not_found -> 0 in
     let dir = String.sub file 0 index in
     let file = 
         String.sub file (index + 1) ((String.length file) - (index + 1)) in
-    let newfid = O9pc.walk conn fid false dir in
+    let newfid = O9pc.walk conn fid dir in
     let _ = O9pc.create conn newfid file (O9pc.dMWRITE :> int32)  O9pc.oWRITE in
     O9pc.clunk conn newfid;
     O9pc.clunk conn fid
 
-let remove address name =
+let remove address filename =
     let conn = O9pc.connect address in
-    let fid = O9pc.attach conn user "/" in
-    let _ = O9pc.walk conn fid true name in
+    let fid = O9pc.attach conn "/" in
+    let _ = O9pc.walk conn fid ~reuse filename in
     O9pc.remove conn fid
 
 let run address cmd =

@@ -109,16 +109,17 @@ val connect : string -> t
 [attach conn user address] attaches the connection [conn] to [address] and
 returns the [fid] for that file.
 It is common to attach to [/]. Returns a fid for the attached address.
+[user] defaults to [Sys.getenv "USER"].
 *)
-val attach : t -> string -> string -> fid
+val attach : t -> ?user:string -> string -> fid
 
 (**
 [walk conn oldfid reuse file] walks from [oldfid] to the [file]. [file] must be
-a file-name relative to the file represented by [oldfid]. If [reuse] is true,
+a file-name relative to the file represented by [oldfid]. If [reuse] is [Some ()],
 the old [fid] will represent the new file. Returns the fid, [oldfid] if [reuse]
-was true and a new fid if [reuse] was false.
+was [Some ()] and a new fid if [reuse] was [None] (default).
 *)
-val walk : t -> fid -> reuse:bool -> filename:string -> fid
+val walk : t -> fid -> ?reuse:unit -> string -> fid
 
 (**
 [fopen conn fid mode] [mode] is one of the File Modes. Returns an [iounit].
@@ -139,15 +140,18 @@ val stat : t -> fid -> Fcall.stat
 (**
 [read conn fid iounit offset count] reads [count] bytes from [offset] in the
 file represented by [fid].
+[offset] defaults to [0L].
 *)
-val read : t -> fid -> io -> offset:int64 -> count:int32 -> string
+val read : t -> fid -> io -> ?offset:int64 -> int32 -> string
 
 (**
 [write conn fid iounit offset count data] writes [count] bytes of [data] at
 [offset] to the file represented by [fid]. Returns the amount of bytes actually
 written.
+[offset] defaults to [0L].
+[count] defaults to [Int32.of_int (String.length data)].
 *)
-val write : t -> fid -> io -> offset:int64 -> count:int32 -> string -> int32
+val write : t -> fid -> io -> ?offset:int64 -> ?count:int32 -> string -> int32
 
 (**
 [create conn fid name perm mode] creates a file [name] in the directory
