@@ -1,0 +1,9 @@
+(library
+ (inline_tests)
+ (name nuzz)
+ (preprocess
+  (pps ppx_inline_test)))
+
+(install
+ (section lib)
+ (files nuzz.cma nuzz.cmxa nuzz.cmxs))

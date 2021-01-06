@@ -1,6 +1,0 @@
-name = "o9p"
-version = "0.4.2"
-description = "9P library implementation in OCaml"
-requires = "unix, str"
-archive(byte) = "o9p.cma"
-archive(native) = "o9p.cmxa"
