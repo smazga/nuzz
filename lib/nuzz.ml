@@ -204,9 +204,17 @@ let attach fd ?user aname =
     deserialize rattach (receive fd);
     tattach#fid
 
+let serveraddr address =
+  let parts = String.split_on_char '!' address in
+  let port = if List.length parts = 1 then 5460 else int_of_string (List.nth parts 1) in
+  ((Unix.gethostbyname (List.nth parts 0)).Unix.h_addr_list.(0), port)
+
 let connect address =
-    let sockaddr = Unix.ADDR_UNIX address in
-    let fd = Unix.socket Unix.PF_UNIX Unix.SOCK_STREAM 0 in
+  let sockaddr = if Sys.file_exists address
+                 then Unix.ADDR_UNIX address
+                 else (let addr, port = serveraddr address in
+                       Unix.ADDR_INET (addr, port)) in
+    let fd = Unix.socket (Unix.domain_of_sockaddr sockaddr) Unix.SOCK_STREAM 0 in
     Unix.connect fd sockaddr;
     version fd;
     fd
