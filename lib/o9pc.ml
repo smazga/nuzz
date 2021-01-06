@@ -49,7 +49,6 @@ let msize = ref 8192
 
 exception Socket_error of string
 exception Client_error of string
-exception Internal_error of string
 
 (* File modes *)
 type filemode = int
@@ -89,21 +88,21 @@ let deserialize obj package =
 let send sockfd data =
     try
         let data_len = String.length data in
-        let sent_len = Unix.send sockfd data 0 data_len [] in
+        let sent_len = Unix.send sockfd (Bytes.of_string data) 0 data_len [] in
         if data_len != sent_len then raise (Socket_error "Sent 0 bytes")
     with Unix.Unix_error (num, "send", _) ->
         raise (Socket_error (Unix.error_message num))
 
 let receive sockfd =
     try
-        let buff = String.create !msize in
+        let buff = Bytes.create !msize in
         let recv = Unix.recv sockfd buff in
         let rlen = recv 0 4 [] in
         if rlen = 0 then raise (Socket_error "Socket closed cleanly");
-        let plen = Int32.to_int (Fcall.d_int32 buff 0) in
+        let plen = Int32.to_int (Fcall.d_int32 (Bytes.to_string buff) 0) in
         let rlen = recv 4 plen [] in
         if rlen = 0 then raise (Socket_error "Socket closed cleanly")
-        else String.sub buff 0 plen
+        else String.sub (Bytes.to_string buff) 0 plen
     with Unix.Unix_error (num, "recv", _) ->
         raise (Socket_error (Unix.error_message num))
             
@@ -139,7 +138,7 @@ let clunk fd fid =
     deserialize rclunk (receive fd)
 
 (* Low level function *)
-let read fd fid iounit ?(offset=0L) count =
+let read fd fid _ ?(offset=0L) count =
     let tread = new tRead fid offset count in
     send fd tread#serialize;
     let rread = new rRead tread#tag "" in

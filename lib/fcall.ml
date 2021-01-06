@@ -62,7 +62,7 @@ exception Package_not_complete
 exception Wrong_tag of int * int
 
 (* Message tags *)
-let tauth = 255
+(* let tauth = 255 *)
 let notag = 255
 
 let _tag = ref 0
@@ -94,32 +94,32 @@ let (+=) ref inc =
 
 (* Serialize values *)
 let s_intx bytes v =
-    let str = String.create bytes in
+    let str = Bytes.create bytes in
     for i = 0 to (bytes - 1) do
-        str.[i] <- char_of_int ((v lsr (i * 8)) land 255)
+      Bytes.set str i (char_of_int ((v lsr (i * 8)) land 255))
     done;
-    str
+    Bytes.to_string str
 
 let s_int8 v = String.make 1 (char_of_int v)
 let s_int16 v = s_intx 2 v
 
 let s_int32 v =
     let bytes = 4 in
-    let str = String.create bytes in
+    let str = Bytes.create bytes in
     for i = 0 to (bytes - 1) do
         let curr_int = Int32.to_int (Int32.shift_right_logical v (i * 8)) in
-        str.[i] <- char_of_int (curr_int land 255)
+        Bytes.set str i (char_of_int (curr_int land 255))
     done;
-    str
+    Bytes.to_string str
 
 let s_int64 v =
     let bytes = 8 in
-    let str = String.create bytes in
+    let str = Bytes.create bytes in
     for i = 0 to (bytes - 1) do
         let curr_int = Int64.to_int (Int64.shift_right_logical v (i * 8)) in
-        str.[i] <- char_of_int (curr_int land 255)
+        Bytes.set str i (char_of_int (curr_int land 255))
     done;
-    str
+    Bytes.to_string str
 
 let s_str s = (s_int16 (String.length s)) ^ s
 
@@ -202,7 +202,7 @@ let d_stat data offset =
 
 (* Base class for P9 request transmissions and responses. *)
 class virtual fcall =
-    object (self)
+    object (_)
         val mutable mtype = 0
         val mutable tag = 0
 
@@ -232,8 +232,6 @@ class tVersion msize =
         initializer
             mtype <- 100
 
-        method mtype = mtype
-
         method serialize =
             let vrsn_str = "9P2000" in
             let data = concat [
@@ -245,7 +243,7 @@ class tVersion msize =
             let len = Int32.of_int ((String.length data) + 4) in
             s_int32 len  ^ data
 
-        method deserialize package = () (* TODO *)
+        method deserialize _ = () (* TODO *)
     end
 
 class rVersion msize =
@@ -267,7 +265,6 @@ class rVersion msize =
                 raise (Unsupported_version vrsn_str)
 
         method serialize = "" (* TODO *)
-        method mtype = mtype
         method msize = msize
     end
 
@@ -296,9 +293,8 @@ class tAttach afid uname aname =
             let len = Int32.of_int ((String.length data) + 4) in
             s_int32 len ^ data
 
-        method deserialize package = () (* TODO *)
+        method deserialize _ = () (* TODO *)
 
-        method mtype = mtype
         method fid = fid
     end
 
@@ -317,7 +313,6 @@ class rAttach _tag =
 
         method serialize = "" (* TODO *)
 
-        method mtype = mtype
     end
 
 class rError _tag message =
@@ -355,7 +350,7 @@ class tflush oldtag =
             let len = Int32.of_int ((String.length data) + 4) in
             s_int32 len ^ data
 
-        method deserialize pagkage = () (* TODO *)
+        method deserialize _ = () (* TODO *)
     end
 
 class rflush _tag =
@@ -398,9 +393,8 @@ class tWalk fid use_old wname =
             let len = Int32.of_int ((String.length data) + 4) in
             s_int32 len ^ data
                 
-        method deserialize package = () (* TODO *)
+        method deserialize _ = () (* TODO *)
 
-        method mtype = mtype
         method newfid = newfid
     end
 
@@ -439,7 +433,7 @@ class tOpen fid mode =
             let len = Int32.of_int ((String.length data) + 4) in
             s_int32 len ^ data
 
-        method deserialize package = () (* TODO *)
+        method deserialize _ = () (* TODO *)
     end
 
 class rOpen _tag _iounit =
@@ -481,7 +475,7 @@ class tCreate fid name perm mode =
             let len = Int32.of_int ((String.length data) + 4) in
             s_int32 len ^ data
 
-        method deserialize package = () (* TODO *)
+        method deserialize _ = () (* TODO *)
     end
 
 class rCreate _tag iounit =
@@ -522,7 +516,7 @@ class tRead fid offset count =
             let len = Int32.of_int ((String.length data) + 4) in
             s_int32 len ^ data
 
-        method deserialize package = (* TODO *)
+        method deserialize _ = (* TODO *)
             ()
     end
 
@@ -549,7 +543,7 @@ class rRead _tag data =
     end
 
 class tWrite fid offset count data =
-    object (self)
+    object (_)
         inherit fcall
         
         initializer
@@ -568,7 +562,7 @@ class tWrite fid offset count data =
             let len = Int32.of_int ((String.length package) + 4) in
             s_int32 len ^ package
 
-        method deserialize package = () (* TODO *)
+        method deserialize _ = () (* TODO *)
     end
 
 class rWrite _tag count =
@@ -607,7 +601,7 @@ class tClunk fid =
             let len = Int32.of_int ((String.length data) + 4) in
             s_int32 len ^ data
 
-        method deserialize package = () (* TODO *)
+        method deserialize _ = () (* TODO *)
     end
 
 class rClunk _tag =
@@ -640,7 +634,7 @@ class tRemove fid =
             let len = Int32.of_int ((String.length data) + 4) in
             s_int32 len ^ data
 
-        method deserialize package = () (* TODO *)
+        method deserialize _ = () (* TODO *)
     end
 
 class rRemove _tag =
@@ -674,7 +668,7 @@ class tStat fid =
             let len = Int32.of_int ((String.length data) + 4) in
             s_int32 len ^ data
 
-        method deserialize package = () (* TODO *)
+        method deserialize _ = () (* TODO *)
     end
 
 class rStat _tag stat =
@@ -699,8 +693,7 @@ class rStat _tag stat =
             | Some stat -> stat 
     end
 
-(* TODO implement these: *)
-let tauth = String.make 1 (char_of_int 102)
-let rauth = String.make 1 (char_of_int 103)
-let twstat  = String.make 1 (char_of_int 126)
-let rwstat  = String.make 1 (char_of_int 127)
+(* let tauth = String.make 1 (char_of_int 102)
+ * let rauth = String.make 1 (char_of_int 103)
+ * let twstat  = String.make 1 (char_of_int 126)
+ * let rwstat  = String.make 1 (char_of_int 127) *)
