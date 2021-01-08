@@ -2,7 +2,8 @@
  (inline_tests)
  (name nuzz)
  (preprocess
-  (pps ppx_inline_test)))
+  (pps ppx_inline_test))
+ (libraries str unix))
 
 (install
  (section lib)

@@ -52,6 +52,7 @@ exception Client_error of string
 
 (* File modes *)
 type filemode = int
+
 let oREAD = 0x00
 let oWRITE = 0x01
 let oRDWR = 0x02
@@ -64,174 +65,176 @@ let oAPPEND = 0x80
 let combine_mode = ( lor )
 
 type modebit = int32
+
 (* Mode bits for files / dirs *)
-let dMDIR  = Int32.shift_left Int32.one 31
+let dMDIR = Int32.shift_left Int32.one 31
 let dMAPPEND = Int32.shift_left Int32.one 30
 let dMEXCL = Int32.shift_left Int32.one 29
-let dMMOUNT = Int32.shift_left Int32.one 28	
-let dMAUTH = Int32.shift_left Int32.one 27 
+let dMMOUNT = Int32.shift_left Int32.one 28
+let dMAUTH = Int32.shift_left Int32.one 27
 let dMTMP = Int32.shift_left Int32.one 26
 let dMREAD = Int32.shift_left (Int32.of_int 0x4) 6
 let dMWRITE = Int32.shift_left (Int32.of_int 0x2) 6
-let dMEXEC = Int32.shift_left (Int32.of_int 0x1) 6 
-
+let dMEXEC = Int32.shift_left (Int32.of_int 0x1) 6
 let delimiter_exp = Str.regexp "/"
 
 let deserialize obj package =
-    try
-        obj#deserialize package
-    with Fcall.Illegal_package_type 107 ->
-        let error = new rError obj#tag "" in
-        error#deserialize package;
-        raise (Client_error error#message)
+  try obj#deserialize package
+  with Fcall.Illegal_package_type 107 ->
+    let error = new rError obj#tag "" in
+    error#deserialize package ; raise (Client_error error#message)
 
 let send sockfd data =
-    try
-        let data_len = String.length data in
-        let sent_len = Unix.send sockfd (Bytes.of_string data) 0 data_len [] in
-        if data_len != sent_len then raise (Socket_error "Sent 0 bytes")
-    with Unix.Unix_error (num, "send", _) ->
-        raise (Socket_error (Unix.error_message num))
+  try
+    let data_len = String.length data in
+    let sent_len = Unix.send sockfd (Bytes.of_string data) 0 data_len [] in
+    if data_len != sent_len then raise (Socket_error "Sent 0 bytes")
+  with Unix.Unix_error (num, "send", _) -> raise (Socket_error (Unix.error_message num))
 
 let receive sockfd =
-    try
-        let buff = Bytes.create !msize in
-        let recv = Unix.recv sockfd buff in
-        let rlen = recv 0 4 [] in
-        if rlen = 0 then raise (Socket_error "Socket closed cleanly");
-        let plen = Int32.to_int (Fcall.d_int32 (Bytes.to_string buff) 0) in
-        let rlen = recv 4 plen [] in
-        if rlen = 0 then raise (Socket_error "Socket closed cleanly")
-        else String.sub (Bytes.to_string buff) 0 plen
-    with Unix.Unix_error (num, "recv", _) ->
-        raise (Socket_error (Unix.error_message num))
-            
-let fopen fd fid mode =
-    let topen = new tOpen fid mode in
-    send fd topen#serialize;
-    let ropen = new rOpen topen#tag Int32.zero in
-    deserialize ropen (receive fd);
-    ropen#iounit
+  try
+    let buff = Bytes.create !msize in
+    let recv = Unix.recv sockfd buff in
+    let rlen = recv 0 4 [] in
+    if rlen = 0 then raise (Socket_error "Socket closed cleanly") ;
+    let plen = Int32.to_int (Fcall.d_int32 (Bytes.to_string buff) 0) in
+    let rlen = recv 4 plen [] in
+    if rlen = 0 then raise (Socket_error "Socket closed cleanly") else String.sub (Bytes.to_string buff) 0 plen
+  with Unix.Unix_error (num, "recv", _) -> raise (Socket_error (Unix.error_message num))
 
-let version fd = 
-    let tversion = new tVersion (Int32.of_int !msize) in
-    send fd tversion#serialize;
-    let rversion = new rVersion Int32.zero in
-    deserialize rversion (receive fd);
-    msize := Int32.to_int rversion#msize
+let fopen fd fid mode =
+  let topen = new tOpen fid mode in
+  send fd topen#serialize ;
+  let ropen = new rOpen topen#tag Int32.zero in
+  deserialize ropen (receive fd) ;
+  ropen#iounit
+
+let version fd =
+  let tversion = new tVersion (Int32.of_int !msize) in
+  send fd tversion#serialize ;
+  let rversion = new rVersion Int32.zero in
+  deserialize rversion (receive fd) ;
+  msize := Int32.to_int rversion#msize
 
 let walk fd oldfid ?reuse filename =
-    let reuse = match reuse with
-        | None -> false
-        | Some () -> true in
-    let wname = Str.split delimiter_exp filename in
-    let twalk = new tWalk oldfid reuse wname in
-    send fd twalk#serialize;
-    let rwalk = new rWalk twalk#tag 0 in
-    deserialize rwalk (receive fd);
-    twalk#newfid
+  let reuse =
+    match reuse with
+    | None -> false
+    | Some () -> true in
+  let wname = Str.split delimiter_exp filename in
+  let twalk = new tWalk oldfid reuse wname in
+  send fd twalk#serialize ;
+  let rwalk = new rWalk twalk#tag 0 in
+  deserialize rwalk (receive fd) ;
+  twalk#newfid
 
 let clunk fd fid =
-    let tclunk = new tClunk fid in
-    send fd tclunk#serialize;
-    let rclunk = new rClunk tclunk#tag in
-    deserialize rclunk (receive fd)
+  let tclunk = new tClunk fid in
+  send fd tclunk#serialize ;
+  let rclunk = new rClunk tclunk#tag in
+  deserialize rclunk (receive fd)
 
 (* Low level function *)
-let read fd fid _ ?(offset=0L) count =
-    let tread = new tRead fid offset count in
-    send fd tread#serialize;
-    let rread = new rRead tread#tag "" in
-    deserialize rread (receive fd);
-    rread#data
+let read fd fid _ ?(offset = 0L) count =
+  let tread = new tRead fid offset count in
+  send fd tread#serialize ;
+  let rread = new rRead tread#tag "" in
+  deserialize rread (receive fd) ;
+  rread#data
 
 (* Low level function *)
-let write fd fid iounit ?(offset=0L) ?count data =
-    let count = match count with
-        | None -> Int32.of_int (String.length data)
-        | Some c -> c
-    in
-    let rec write offset count data =
-        let i32write_len = if iounit > count then count else iounit in
-        let write_len = Int32.to_int i32write_len in
-        let i64write_len = Int64.of_int write_len in
-        let d = String.sub data 0 write_len in
-        let twrite = new tWrite fid offset i32write_len d in
-        send fd twrite#serialize;
-        let rwrite = new rWrite twrite#tag Int32.zero in
-        deserialize rwrite (receive fd);
-        if not (rwrite#count = i32write_len) then
-            (let swrite_len = string_of_int write_len in
-            (let msg = "Failed to write " ^ swrite_len ^ " bytes, " ^
-                  "wrote " ^ (Int32.to_string rwrite#count) in 
-            raise (Client_error msg)));
-        let i_64_count = Int64.of_int32 count in
-        if Int64.add offset i64write_len < i_64_count then
-            let new_offset = Int64.add offset i64write_len in
-            let new_count = Int32.sub count i32write_len in
-            let rest = String.sub data write_len (Int32.to_int new_count) in
-            write new_offset new_count rest in
-    write offset count data;
-    count (* FIXME Should we keep track of how much we have written? *)
+let write fd fid iounit ?(offset = 0L) ?count data =
+  let count =
+    match count with
+    | None -> Int32.of_int (String.length data)
+    | Some c -> c in
+  let rec write offset count data =
+    let i32write_len = if iounit > count then count else iounit in
+    let write_len = Int32.to_int i32write_len in
+    let i64write_len = Int64.of_int write_len in
+    let d = String.sub data 0 write_len in
+    let twrite = new tWrite fid offset i32write_len d in
+    send fd twrite#serialize ;
+    let rwrite = new rWrite twrite#tag Int32.zero in
+    deserialize rwrite (receive fd) ;
+    ( if not (rwrite#count = i32write_len) then
+      let swrite_len = string_of_int write_len in
+      let msg = "Failed to write " ^ swrite_len ^ " bytes, " ^ "wrote " ^ Int32.to_string rwrite#count in
+      raise (Client_error msg) ) ;
+    let i_64_count = Int64.of_int32 count in
+    if Int64.add offset i64write_len < i_64_count then
+      let new_offset = Int64.add offset i64write_len in
+      let new_count = Int32.sub count i32write_len in
+      let rest = String.sub data write_len (Int32.to_int new_count) in
+      write new_offset new_count rest in
+  write offset count data ; count
+
+(* FIXME Should we keep track of how much we have written? *)
 
 let remove fd fid =
-    let tremove = new tRemove fid in
-    send fd tremove#serialize;
-    let rremove = new rRemove tremove#tag in
-    deserialize rremove (receive fd)
+  let tremove = new tRemove fid in
+  send fd tremove#serialize ;
+  let rremove = new rRemove tremove#tag in
+  deserialize rremove (receive fd)
 
 let create fd fid ~filename ~perm ~mode =
-    let tcreate = new tCreate fid filename perm mode in
-    send fd tcreate#serialize;
-    let rcreate = new rCreate tcreate#tag Int32.zero in
-    deserialize rcreate (receive fd);
-    rcreate#iounit
+  let tcreate = new tCreate fid filename perm mode in
+  send fd tcreate#serialize ;
+  let rcreate = new rCreate tcreate#tag Int32.zero in
+  deserialize rcreate (receive fd) ;
+  rcreate#iounit
 
 let stat fd fid =
-    let tstat = new tStat fid in
-    send fd tstat#serialize;
-    let rstat = new rStat tstat#tag None in
-    deserialize rstat (receive fd);
-    rstat#stat
+  let tstat = new tStat fid in
+  send fd tstat#serialize ;
+  let rstat = new rStat tstat#tag None in
+  deserialize rstat (receive fd) ;
+  rstat#stat
 
-let attach fd ?user aname = 
-    let user = match user with
-        | Some u -> u
-        | None -> Sys.getenv "USER" in
-    let tattach = new tAttach None user aname in
-    send fd tattach#serialize;
-    let rattach = new rAttach tattach#tag in
-    deserialize rattach (receive fd);
-    tattach#fid
+let auth fd uname aname =
+  let tauth = new tAuth uname aname in
+  print_endline ("sending Tauth");
+  send fd tauth#serialize ;
+  let rauth = new rAuth tauth#tag in
+  deserialize rauth (receive fd) ;
+  print_endline ("received Rauth");
+  rauth#aqid
+
+let attach fd ?user aname =
+  let user =
+    match user with
+    | Some u -> u
+    | None -> Sys.getenv "USER" in
+  ignore (auth fd user aname);
+  let tattach = new tAttach None user aname in
+  send fd tattach#serialize ;
+  let rattach = new rAttach tattach#tag in
+  deserialize rattach (receive fd) ;
+  tattach#fid
 
 let serveraddr address =
   let parts = String.split_on_char '!' address in
-  let port = if List.length parts = 1 then 5460 else int_of_string (List.nth parts 1) in
+  let port = if List.length parts = 1 then 546 else int_of_string (List.nth parts 1) in
   ((Unix.gethostbyname (List.nth parts 0)).Unix.h_addr_list.(0), port)
 
 let connect address =
-  let sockaddr = if Sys.file_exists address
-                 then Unix.ADDR_UNIX address
-                 else (let addr, port = serveraddr address in
-                       Unix.ADDR_INET (addr, port)) in
-    let fd = Unix.socket (Unix.domain_of_sockaddr sockaddr) Unix.SOCK_STREAM 0 in
-    Unix.connect fd sockaddr;
-    version fd;
-    fd
+  let sockaddr =
+    if Sys.file_exists address then Unix.ADDR_UNIX address
+    else
+      let addr, port = serveraddr address in
+      Unix.ADDR_INET (addr, port) in
+  let fd = Unix.socket (Unix.domain_of_sockaddr sockaddr) Unix.SOCK_STREAM 0 in
+  Unix.connect fd sockaddr ; version fd ; fd
 
-let unpack_files data = 
-    try
-        let rec unpack_files data acc =
-            let record = Fcall.d_stat data 0 in
-            let stat_len = (Fcall.d_int16 data 0) + 2 in
-            if stat_len < (String.length data) then
-                (let rest_len = (String.length data) - stat_len in
-                let rest = String.sub data stat_len rest_len in
-                unpack_files rest (record :: acc))
-            else
-                List.rev (record :: acc) in
-        if String.length data > 0 then
-           unpack_files data []
-        else 
-           []
-    with _ -> raise (Client_error "invalid package, expected directory read")
+let unpack_files data =
+  try
+    let rec unpack_files data acc =
+      let record = Fcall.d_stat data 0 in
+      let stat_len = Fcall.d_int16 data 0 + 2 in
+      if stat_len < String.length data then
+        let rest_len = String.length data - stat_len in
+        let rest = String.sub data stat_len rest_len in
+        unpack_files rest (record :: acc)
+      else List.rev (record :: acc) in
+    if String.length data > 0 then unpack_files data [] else []
+  with _ -> raise (Client_error "invalid package, expected directory read")
