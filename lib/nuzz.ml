@@ -195,17 +195,23 @@ let auth fd uname aname =
   let tauth = new tAuth uname aname in
   print_endline ("sending Tauth");
   send fd tauth#serialize ;
-  let rauth = new rAuth tauth#tag in
+  let rauth = new rAuth tauth#tag tauth#afid in
   deserialize rauth (receive fd) ;
   print_endline ("received Rauth");
-  rauth#aqid
+  print_endline (" qid:" ^ rauth#aqid#to_string);
+  print_endline (" afid:" ^ Int32.to_string rauth#afid);
+  rauth
 
 let attach fd ?user aname =
   let user =
     match user with
     | Some u -> u
     | None -> Sys.getenv "USER" in
-  ignore (auth fd user aname);
+  let rauth = auth fd user aname in
+  if rauth#aqid#qtype = Qtauth
+  then (print_endline "NEED TO AUTHENTICATE";
+        let foo = fopen fd rauth#afid 0o6 in
+        print_endline ("XXXXX:" ^ Int32.to_string foo));
   let tattach = new tAttach None user aname in
   send fd tattach#serialize ;
   let rattach = new rAttach tattach#tag in
@@ -214,7 +220,7 @@ let attach fd ?user aname =
 
 let serveraddr address =
   let parts = String.split_on_char '!' address in
-  let port = if List.length parts = 1 then 546 else int_of_string (List.nth parts 1) in
+  let port = if List.length parts = 1 then 564 else int_of_string (List.nth parts 1) in
   ((Unix.gethostbyname (List.nth parts 0)).Unix.h_addr_list.(0), port)
 
 let connect address =

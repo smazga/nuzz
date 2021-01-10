@@ -39,6 +39,7 @@
  *)
 
 type version = V9P2000
+type qtype = Qtdir | Qtappend | Qtexcl | Qtmount | Qtauth | Qttmp | Qtsymlink | Qtfile | Qtnone
 
 type stat =
   { ktype: int
@@ -54,11 +55,6 @@ type stat =
   ; uid: string
   ; gid: string
   ; muid: string }
-
-type qid =
-  { path: Int64.t
-  ; vers: Int32.t
-  ; qtype: int }
 
 exception Unsupported_version of string
 exception Illegal_package_type of int
@@ -189,14 +185,57 @@ let d_stat data offset =
   offset += (String.length muid + 2) ;
   {ktype; kdev; q_type; q_vers; q_path; mode; atime; mtime; length; name; uid; gid; muid}
 
-let d_qid data offset =
-  let offset = ref offset in
-  let path = d_int64 data !offset in
-  offset += 8 ;
-  let vers = d_int32 data !offset in
-  offset += 4 ;
-  let qtype = d_int8 data !offset in
-  {path; vers; qtype}
+(* let d_qid data offset =
+ *    let offset = ref offset in
+ *                   qtype <- d_int8 data !offset in
+ *                   offset += 1 ;
+ *                   vers <- d_int32 data !offset in
+ *                   offset += 4 ;
+ *                   path <- d_int64 data !offset in
+ *   {path; vers; qtype} *)
+
+class qid data offset =
+  object (self)
+    val mutable qtype: int = 0
+    val mutable qvers: Int32.t = Int32.of_int 0
+    val mutable qpath: Int64.t = Int64.of_int 0
+
+    initializer if String.length data - offset < 13
+                then raise (Failure "invalid qid payload")
+                else (qtype <- d_int8 data offset;
+                      qvers <- d_int32 data (offset + 1);
+                      qpath <- d_int64 data (offset + 5))
+
+    method qtype =
+      match qtype with
+      | 0x80 -> Qtdir
+      | 0x40 -> Qtappend
+      | 0x20 -> Qtexcl
+      | 0x10 -> Qtmount
+      | 0x08 -> Qtauth
+      | 0x04 -> Qttmp
+      | 0x02 -> Qtsymlink
+      | _ -> Qtfile
+
+    method qvers = qvers
+
+    method qpath = qpath
+
+    method to_string =
+      let qtstr =
+        match self#qtype with
+        | Qtdir -> "QTDIR"
+        | Qtappend -> "QTAPPEND"
+        | Qtexcl -> "QTEXCL"
+        | Qtmount -> "QTMOUNT"
+        | Qtauth -> "QTAUTH"
+        | Qttmp -> "QTTMP"
+        | Qtsymlink -> "QTSYMLINK"
+        | Qtfile -> "QTFILE"
+        | _ -> raise (Failure "broken qid") in
+      "{" ^ qtstr ^ ", " ^ Int32.to_string qvers ^ ", " ^ Int64.to_string qpath ^ "}"
+  end
+let empty_qid () = new qid (String.make 13 '0') 0
 
 (* Base class for P9 request transmissions and responses. *)
 class virtual fcall =
@@ -282,17 +321,20 @@ class tAuth uname aname =
       s_int32 len ^ data
 
     method deserialize _ = ()
+    method afid = afid
   end
 
-class rAuth _tag =
+class rAuth _tag _afid =
   object
     inherit fcall
 
-    val mutable aqid = ref {path=(Int64.of_int 0); vers=(Int32.of_int 0); qtype=0}
+    val mutable aqid: qid = empty_qid ()
+    val mutable afid = Int32.zero
 
     initializer
-      mtype <- 103 ;
-      tag <- _tag
+    mtype <- 103 ;
+    tag <- _tag ;
+    afid <- _afid
 
     method serialize = ""
 
@@ -300,15 +342,18 @@ class rAuth _tag =
       let mt = d_int8 package 4 in
       match mt with
       | m when m = mtype ->
-         let psize = d_int32 package 0 in
-         if Int32.of_int (String.length package) < psize then raise Package_not_complete ;
-         let rtag = d_int16 package 5 in
-         if tag != rtag then raise (Wrong_tag (tag, rtag));
-         aqid := d_qid package 7
-      | 107 -> ()
+          let psize = d_int32 package 0 in
+          if Int32.of_int (String.length package) < psize then raise Package_not_complete ;
+          let rtag = d_int16 package 5 in
+          if tag != rtag then raise (Wrong_tag (tag, rtag)) ;
+          aqid <- new qid package 7
+      | 107 ->
+          print_endline "no authentication needed" ;
+          ()
       | _ -> raise (Illegal_package_type mt)
 
     method aqid = aqid
+    method afid = afid
   end
 
 class tAttach afid uname aname =
