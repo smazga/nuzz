@@ -185,15 +185,6 @@ let d_stat data offset =
   offset += (String.length muid + 2) ;
   {ktype; kdev; q_type; q_vers; q_path; mode; atime; mtime; length; name; uid; gid; muid}
 
-(* let d_qid data offset =
- *    let offset = ref offset in
- *                   qtype <- d_int8 data !offset in
- *                   offset += 1 ;
- *                   vers <- d_int32 data !offset in
- *                   offset += 4 ;
- *                   path <- d_int64 data !offset in
- *   {path; vers; qtype} *)
-
 class qid data offset =
   object (self)
     val mutable qtype: int = 0
@@ -236,6 +227,15 @@ class qid data offset =
       "{" ^ qtstr ^ ", " ^ Int32.to_string qvers ^ ", " ^ Int64.to_string qpath ^ "}"
   end
 let empty_qid () = new qid (String.make 13 '0') 0
+
+(* type fid =
+ *   { (\* handle? *\)
+ *     fid: Int32.t
+ *   ; offset: Int64.t
+ *   ; path: string
+ *   ; pathlen: int
+ *   ; flags: int
+ *   ; qid: qid } *)
 
 (* Base class for P9 request transmissions and responses. *)
 class virtual fcall =
