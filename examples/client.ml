@@ -7,7 +7,7 @@ let () =
              ("-u", Arg.Set_string user, "user");
              ("-a", Arg.Set_string aname, "aname")] print_endline "./client -s <host><!port> -u fred [-a <aname>]";
   (* try *)
-  print_endline "v1";
+  print_endline "v4";
   let conn = Nuzz.connect !server in
   let _ = Nuzz.attach conn ~user:!user !aname in
   print_endline "connected!"

@@ -106,7 +106,6 @@ let clunk fd fid =
   let rclunk = new rClunk tclunk#tag in
   deserialize rclunk (receive fd)
 
-
 let remove fd fid =
   let tremove = new tRemove fid in
   send fd tremove#serialize ;
@@ -132,7 +131,7 @@ let attach fd ?user aname =
     match user with
     | Some u -> u
     | None -> Sys.getenv "USER" in
-  Auth.handle_auth fd user aname;
+  Auth.handle_auth fd user aname ;
   let tattach = new tAttach None user aname in
   send fd tattach#serialize ;
   let rattach = new rAttach tattach#tag in

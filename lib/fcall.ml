@@ -187,15 +187,18 @@ let d_stat data offset =
 
 class qid data offset =
   object (self)
-    val mutable qtype: int = 0
-    val mutable qvers: Int32.t = Int32.of_int 0
-    val mutable qpath: Int64.t = Int64.of_int 0
+    val mutable qtype : int = 0
 
-    initializer if String.length data - offset < 13
-                then raise (Failure "invalid qid payload")
-                else (qtype <- d_int8 data offset;
-                      qvers <- d_int32 data (offset + 1);
-                      qpath <- d_int64 data (offset + 5))
+    val mutable qvers : Int32.t = Int32.of_int 0
+
+    val mutable qpath : Int64.t = Int64.of_int 0
+
+    initializer
+    if String.length data - offset < 13 then raise (Failure "invalid qid payload")
+    else (
+      qtype <- d_int8 data offset ;
+      qvers <- d_int32 data (offset + 1) ;
+      qpath <- d_int64 data (offset + 5) )
 
     method qtype =
       match qtype with
@@ -226,6 +229,7 @@ class qid data offset =
         | _ -> raise (Failure "broken qid") in
       "{" ^ qtstr ^ ", " ^ Int32.to_string qvers ^ ", " ^ Int64.to_string qpath ^ "}"
   end
+
 let empty_qid () = new qid (String.make 13 '0') 0
 
 (* type fid =
@@ -321,6 +325,7 @@ class tAuth uname aname =
       s_int32 len ^ data
 
     method deserialize _ = ()
+
     method afid = afid
   end
 
@@ -328,7 +333,8 @@ class rAuth _tag _afid =
   object
     inherit fcall
 
-    val mutable aqid: qid = empty_qid ()
+    val mutable aqid : qid = empty_qid ()
+
     val mutable afid = Int32.zero
 
     initializer
@@ -353,6 +359,7 @@ class rAuth _tag _afid =
       | _ -> raise (Illegal_package_type mt)
 
     method aqid = aqid
+
     method afid = afid
   end
 
