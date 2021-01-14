@@ -13,15 +13,6 @@ type ticketreq =
   ; (* 28 chars *)
     uid: string (* 28 chars *) }
 
-let getns () =
-  let user = Unix.getlogin () in
-  let disp = Unix.getenv "DISPLAY" in
-  String.concat "." (["/tmp/ns"; user] @ List.tl (String.split_on_char '/' disp))
-
-let factotum () =
-  let ic = open_in (getns() ^ "/factotum/ctl") in
-  input_line ic
-
 let query_auth fd uname aname =
   let tauth = new tAuth uname aname in
   print_endline "Tauth ->" ;
@@ -91,4 +82,4 @@ let handle_auth fd uname aname =
     print_endline "NEED TO AUTHENTICATE" ;
     let authtuples = parse (read fd rauth#afid None ~offset:(Int64.of_int 0) (Int32.of_int 2048)) in
     p9sk1 fd rauth (List.hd authtuples) ;
-    print_endline ("factotum: " ^ factotum ()) )
+    print_endline ("factotum: " ^ Factotum.dial ()) )

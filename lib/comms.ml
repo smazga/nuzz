@@ -65,3 +65,19 @@ let write fd fid iounit ?(offset = 0L) ?count data =
   write offset count data ; count
 
 (* FIXME Should we keep track of how much we have written? *)
+
+let serveraddr address =
+  let parts = String.split_on_char '!' address in
+  let port = if List.length parts = 1 then 564 else int_of_string (List.nth parts 1) in
+  ((Unix.gethostbyname (List.nth parts 0)).Unix.h_addr_list.(0), port)
+
+let connect address =
+  print_endline ("connect:" ^ address);
+  let sockaddr =
+    try
+      let addr, port = serveraddr address in
+      Unix.ADDR_INET (addr, port)
+    with Not_found -> Unix.ADDR_UNIX address
+  in
+  let fd = Unix.socket (Unix.domain_of_sockaddr sockaddr) Unix.SOCK_STREAM 0 in
+  Unix.connect fd sockaddr; fd

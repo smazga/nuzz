@@ -138,20 +138,6 @@ let attach fd ?user aname =
   deserialize rattach (receive fd) ;
   tattach#fid
 
-let serveraddr address =
-  let parts = String.split_on_char '!' address in
-  let port = if List.length parts = 1 then 564 else int_of_string (List.nth parts 1) in
-  ((Unix.gethostbyname (List.nth parts 0)).Unix.h_addr_list.(0), port)
-
-let connect address =
-  let sockaddr =
-    if Sys.file_exists address then Unix.ADDR_UNIX address
-    else
-      let addr, port = serveraddr address in
-      Unix.ADDR_INET (addr, port) in
-  let fd = Unix.socket (Unix.domain_of_sockaddr sockaddr) Unix.SOCK_STREAM 0 in
-  Unix.connect fd sockaddr ; version fd ; fd
-
 let unpack_files data =
   try
     let rec unpack_files data acc =
@@ -164,3 +150,7 @@ let unpack_files data =
       else List.rev (record :: acc) in
     if String.length data > 0 then unpack_files data [] else []
   with _ -> raise (Client_error "invalid package, expected directory read")
+
+let connect address =
+  let fd = Comms.connect address in
+  version fd; fd
